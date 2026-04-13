@@ -6,8 +6,9 @@ import { SSEProvider } from './context/SSEContext';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { AppShell } from './components/layout/AppShell';
 
-import { LoginPage }       from './pages/LoginPage';
-import { RegisterPage }    from './pages/RegisterPage';
+import { LoginPage }         from './pages/LoginPage';
+import { RegisterPage }      from './pages/RegisterPage';
+import { AuthCallbackPage }  from './pages/AuthCallbackPage';
 import { DashboardPage }   from './pages/DashboardPage';
 import { TeamsListPage }   from './pages/TeamsListPage';
 import { TeamDetailPage }  from './pages/TeamDetailPage';
@@ -24,6 +25,7 @@ function AppRoutes() {
     <SSEProvider enabled={!!user}>
       <Routes>
         <Route path="/login"           element={<LoginPage />} />
+        <Route path="/auth/callback"   element={<AuthCallbackPage />} />
         <Route path="/register/:token" element={<RegisterPage />} />
 
         <Route element={<ProtectedRoute><AppShell /></ProtectedRoute>}>
