@@ -208,4 +208,8 @@ GET    /api/github/repos/:owner/:repo/commits
 POST   /api/ai/refine                  SSE stream response
 GET    /api/events                     SSE connection per user
 GET    /api/health
+
+GET    /api/dashboard/personal         3 most recently assigned to caller
+GET    /api/dashboard/org              3 most recently assigned in ORGANIZATION-visible lists
+GET    /api/dashboard/team/:id         3 most recently assigned in a team's lists (member/admin only)
 ```

@@ -10,9 +10,10 @@ import teamsRouter   from './routes/teams';
 import invitesRouter from './routes/invites';
 import listsRouter   from './routes/lists';
 import tasksRouter   from './routes/tasks';
-import githubRouter  from './routes/github';
-import aiRouter      from './routes/ai';
-import eventsRouter  from './routes/events';
+import dashboardRouter from './routes/dashboard';
+import githubRouter    from './routes/github';
+import aiRouter        from './routes/ai';
+import eventsRouter    from './routes/events';
 import { errorHandler } from './middleware/errorHandler';
 
 const app = express();
@@ -33,8 +34,9 @@ app.use('/api/users',   usersRouter);
 app.use('/api/teams',   teamsRouter);
 app.use('/api/invites', invitesRouter);
 app.use('/api/lists',   listsRouter);
-app.use('/api/tasks',   tasksRouter);
-app.use('/api/github',  githubRouter);
+app.use('/api/tasks',     tasksRouter);
+app.use('/api/dashboard', dashboardRouter);
+app.use('/api/github',    githubRouter);
 app.use('/api/ai',      aiRouter);
 app.use('/api/events',  eventsRouter);
 
