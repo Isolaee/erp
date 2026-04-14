@@ -17,6 +17,8 @@ import { ListDetailPage }  from './pages/ListDetailPage';
 import { TaskDetailPage }  from './pages/TaskDetailPage';
 import { AdminPage }       from './pages/AdminPage';
 import { ProfilePage }     from './pages/ProfilePage';
+import { DocsListPage }    from './pages/DocsListPage';
+import { DocDetailPage }   from './pages/DocDetailPage';
 
 function AppRoutes() {
   const { user } = useAuth();
@@ -36,6 +38,8 @@ function AppRoutes() {
           <Route path="/lists"     element={<AllListsPage />} />
           <Route path="/lists/:id" element={<ListDetailPage />} />
           <Route path="/tasks/:id" element={<TaskDetailPage />} />
+          <Route path="/docs"      element={<DocsListPage />} />
+          <Route path="/docs/:id"  element={<DocDetailPage />} />
           <Route path="/admin"     element={<AdminPage />} />
           <Route path="/profile"   element={<ProfilePage />} />
         </Route>

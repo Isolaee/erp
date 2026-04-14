@@ -121,6 +121,50 @@ export interface AiRefinement {
   createdBy?: Pick<User, 'id' | 'name'>;
 }
 
+// Documentation types
+export type DocVisibility = 'PRIVATE' | 'TEAM' | 'ORGANIZATION';
+
+export interface DocSection {
+  id: string;
+  heading: string;
+  level: number;
+  order: number;
+}
+
+export interface Doc {
+  id: string;
+  title: string;
+  content: string;
+  visibility: DocVisibility;
+  ownerId: string;
+  teamId?: string;
+  repoFollowId?: string;
+  lastAutoSyncAt?: string;
+  createdAt: string;
+  updatedAt: string;
+  owner?: Pick<User, 'id' | 'name'>;
+  team?: Pick<Team, 'id' | 'name'>;
+  repoFollow?: Pick<RepoFollow, 'id' | 'owner' | 'repo'>;
+  sections?: DocSection[];
+  aiRefinements?: AiRefinement[];
+}
+
+export interface DocSummary {
+  id: string;
+  title: string;
+  visibility: DocVisibility;
+  ownerId: string;
+  teamId?: string;
+  repoFollowId?: string;
+  lastAutoSyncAt?: string;
+  createdAt: string;
+  updatedAt: string;
+  owner?: Pick<User, 'id' | 'name'>;
+  team?: Pick<Team, 'id' | 'name'>;
+  repoFollow?: Pick<RepoFollow, 'id' | 'owner' | 'repo'>;
+  rank?: number;
+}
+
 // GitHub types
 export interface GithubRepo {
   id: number;

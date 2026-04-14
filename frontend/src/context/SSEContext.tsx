@@ -53,6 +53,15 @@ export function SSEProvider({ children, enabled }: { children: React.ReactNode; 
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
     });
 
+    // Doc events → invalidate docs queries
+    es.addEventListener('doc.updated', () => {
+      queryClient.invalidateQueries({ queryKey: ['docs'] });
+    });
+    es.addEventListener('doc.auto_updated', () => {
+      setNotificationCount((n) => n + 1);
+      queryClient.invalidateQueries({ queryKey: ['docs'] });
+    });
+
     es.onerror = () => setConnected(false);
 
     return () => {

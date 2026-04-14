@@ -1,4 +1,4 @@
-import { ListScope, ListVisibility, UserRole } from '@prisma/client';
+import { DocVisibility, ListScope, ListVisibility, UserRole } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 
 const roleOrder: Record<UserRole, number> = { ADMIN: 3, TEAM_LEAD: 2, MEMBER: 1 };
@@ -100,4 +100,45 @@ export async function canUserAccessTask(userId: string, taskId: string): Promise
   const task = await prisma.task.findUnique({ where: { id: taskId, deletedAt: null } });
   if (!task) return false;
   return canUserAccessList(userId, task.listId);
+}
+
+export async function canUserAccessDoc(userId: string, docId: string): Promise<boolean> {
+  const doc = await prisma.doc.findUnique({ where: { id: docId, deletedAt: null } });
+  if (!doc) return false;
+
+  const user = await prisma.user.findUnique({ where: { id: userId, deletedAt: null } });
+  if (!user) return false;
+
+  if (user.role === UserRole.ADMIN) return true;
+  if (doc.ownerId === userId) return true;
+  if (doc.visibility === DocVisibility.ORGANIZATION) return true;
+
+  if (doc.visibility === DocVisibility.TEAM && doc.teamId) {
+    const membership = await prisma.teamMember.findUnique({
+      where: { userId_teamId: { userId, teamId: doc.teamId } },
+    });
+    return !!membership;
+  }
+
+  return false;
+}
+
+export async function canUserWriteDoc(userId: string, docId: string): Promise<boolean> {
+  const doc = await prisma.doc.findUnique({ where: { id: docId, deletedAt: null } });
+  if (!doc) return false;
+
+  const user = await prisma.user.findUnique({ where: { id: userId, deletedAt: null } });
+  if (!user) return false;
+
+  if (user.role === UserRole.ADMIN) return true;
+  if (doc.ownerId === userId) return true;
+
+  if (doc.visibility === DocVisibility.TEAM && doc.teamId) {
+    const membership = await prisma.teamMember.findUnique({
+      where: { userId_teamId: { userId, teamId: doc.teamId } },
+    });
+    if (membership && hasHigherOrEqualRole(membership.role, UserRole.TEAM_LEAD)) return true;
+  }
+
+  return false;
 }

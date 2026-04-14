@@ -46,6 +46,12 @@ enum ListScope {
   PERSONAL
 }
 
+enum DocVisibility {
+  PRIVATE
+  TEAM
+  ORGANIZATION
+}
+
 enum ListVisibility {
   PRIVATE
   TEAM
@@ -74,6 +80,7 @@ model User {
   aiRefinements    AiRefinement[]
   refreshTokens    RefreshToken[]
   addedRepoFollows RepoFollow[]
+  docs             Doc[]
 }
 
 model Team {
@@ -88,6 +95,7 @@ model Team {
   taskLists   TaskList[]
   repoFollows RepoFollow[]
   invites     Invite[]
+  docs        Doc[]
 }
 
 model TeamMember {
@@ -132,6 +140,7 @@ model RepoFollow {
 
   team    Team  @relation(fields: [teamId], references: [id])
   addedBy User? @relation(fields: [addedByUserId], references: [id])
+  docs    Doc[]
 
   @@unique([teamId, owner, repo])
 }
@@ -200,6 +209,7 @@ model AiRefinement {
   id          String   @id @default(uuid())
   taskId      String?
   listId      String?
+  docId       String?
   prompt      String
   response    String
   toolCalls   Json     @default("[]")
@@ -207,7 +217,49 @@ model AiRefinement {
   createdAt   DateTime @default(now())
 
   task      Task? @relation(fields: [taskId], references: [id])
+  doc       Doc?  @relation(fields: [docId], references: [id])
   createdBy User  @relation(fields: [createdById], references: [id])
+}
+
+model Doc {
+  id             String        @id @default(uuid())
+  title          String
+  content        String        @db.Text
+  visibility     DocVisibility @default(PRIVATE)
+  ownerId        String
+  teamId         String?
+  repoFollowId   String?
+  lastAutoSyncAt DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  deletedAt      DateTime?
+
+  owner         User          @relation(fields: [ownerId], references: [id])
+  team          Team?         @relation(fields: [teamId], references: [id])
+  repoFollow    RepoFollow?   @relation(fields: [repoFollowId], references: [id])
+  sections      DocSection[]
+  aiRefinements AiRefinement[]
+
+  @@index([title])
+  @@index([ownerId])
+  @@index([teamId])
+  @@index([repoFollowId])
+}
+
+model DocSection {
+  id        String   @id @default(uuid())
+  docId     String
+  heading   String
+  content   String   @db.Text
+  level     Int
+  order     Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  doc Doc @relation(fields: [docId], references: [id], onDelete: Cascade)
+
+  @@index([docId])
+  @@index([docId, order])
 }
 
 model RefreshToken {

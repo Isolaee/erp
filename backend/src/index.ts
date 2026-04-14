@@ -14,7 +14,9 @@ import dashboardRouter from './routes/dashboard';
 import githubRouter    from './routes/github';
 import aiRouter        from './routes/ai';
 import eventsRouter    from './routes/events';
+import docsRouter      from './routes/docs';
 import { errorHandler } from './middleware/errorHandler';
+import { startDocSyncPoller } from './services/docSyncService';
 
 const app = express();
 
@@ -39,9 +41,14 @@ app.use('/api/dashboard', dashboardRouter);
 app.use('/api/github',    githubRouter);
 app.use('/api/ai',      aiRouter);
 app.use('/api/events',  eventsRouter);
+app.use('/api/docs',    docsRouter);
 
 app.use(errorHandler);
 
 app.listen(config.PORT, () => {
   console.log(`Backend running on port ${config.PORT}`);
+
+  if (config.NODE_ENV !== 'test') {
+    startDocSyncPoller();
+  }
 });
