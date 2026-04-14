@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { Plus, Lock, Users, Building2 } from 'lucide-react';
-import type { TaskList, ListScope } from '../types/api';
+import type { TaskList, ListScope, Team } from '../types/api';
 import { Spinner } from '../components/shared/Spinner';
 import { EmptyState } from '../components/shared/EmptyState';
 import { Modal } from '../components/shared/Modal';
@@ -21,7 +21,14 @@ export function AllListsPage() {
   const [creating, setCreating] = useState(false);
   const [title, setTitle] = useState('');
   const [scope, setScope] = useState<ListScope>('PERSONAL');
+  const [teamId, setTeamId] = useState('');
   const [saving, setSaving] = useState(false);
+
+  const { data: teams } = useQuery<Team[]>({
+    queryKey: ['teams'],
+    queryFn: () => api.get('/teams').then((r) => r.data),
+    enabled: creating,
+  });
 
   const { data: lists, isLoading } = useQuery<TaskList[]>({
     queryKey: ['lists'],
@@ -31,11 +38,17 @@ export function AllListsPage() {
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
+    if (scope === 'TEAM' && !teamId) return;
     setSaving(true);
     try {
-      await api.post('/lists', { title: title.trim(), scope, visibility: scope === 'PERSONAL' ? 'PRIVATE' : 'ORGANIZATION' });
+      await api.post('/lists', {
+        title: title.trim(),
+        scope,
+        visibility: scope === 'PERSONAL' ? 'PRIVATE' : 'ORGANIZATION',
+        ...(scope === 'TEAM' && { teamId }),
+      });
       queryClient.invalidateQueries({ queryKey: ['lists'] });
-      setTitle(''); setScope('PERSONAL'); setCreating(false);
+      setTitle(''); setScope('PERSONAL'); setTeamId(''); setCreating(false);
     } finally {
       setSaving(false);
     }
@@ -110,7 +123,7 @@ export function AllListsPage() {
             <label className="block text-sm font-medium text-gray-700 mb-1">Scope</label>
             <select
               value={scope}
-              onChange={(e) => setScope(e.target.value as ListScope)}
+              onChange={(e) => { setScope(e.target.value as ListScope); setTeamId(''); }}
               className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="PERSONAL">Personal</option>
@@ -118,9 +131,25 @@ export function AllListsPage() {
               <option value="ORGANIZATION">Organization</option>
             </select>
           </div>
+          {scope === 'TEAM' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Team</label>
+              <select
+                value={teamId}
+                onChange={(e) => setTeamId(e.target.value)}
+                required
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Select a team…</option>
+                {teams?.map((t) => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
           <div className="flex justify-end gap-2">
             <button type="button" onClick={() => setCreating(false)} className="rounded-lg border border-gray-300 px-4 py-2 text-sm">Cancel</button>
-            <button type="submit" disabled={saving || !title.trim()} className="rounded-lg bg-blue-600 px-4 py-2 text-sm text-white disabled:opacity-50">
+            <button type="submit" disabled={saving || !title.trim() || (scope === 'TEAM' && !teamId)} className="rounded-lg bg-blue-600 px-4 py-2 text-sm text-white disabled:opacity-50">
               {saving ? 'Creating...' : 'Create'}
             </button>
           </div>
