@@ -42,7 +42,7 @@ router.post('/', async (req: Request, res: Response) => {
     description: z.string().optional(),
     scope: z.nativeEnum(ListScope),
     visibility: z.nativeEnum(ListVisibility).optional().default(ListVisibility.PRIVATE),
-    teamId: z.string().uuid().optional(),
+    teamId: z.string().min(1).optional(),
   }).parse(req.body);
 
   if (body.scope === ListScope.TEAM && !body.teamId) {
