@@ -3,6 +3,7 @@ import { TestRunStatus } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { config } from '../config';
 import { emit } from './sseService';
+import { getRepo } from './githubService';
 
 function makeOctokit(token?: string | null): Octokit {
   return new Octokit({ auth: token ?? config.GITHUB_TOKEN ?? undefined });
@@ -18,6 +19,31 @@ async function resolveToken(repoFollowId: string): Promise<string | null> {
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// Set status ERROR without clobbering the existing aiAnalysis from the analysis step.
+// Merges executionError into the JSON so the UI can display both.
+async function markExecutionError(testRunId: string, reason: string): Promise<void> {
+  const run = await prisma.testRun.findUnique({
+    where: { id: testRunId },
+    select: { aiAnalysis: true },
+  });
+
+  let merged: Record<string, unknown> = { executionError: reason };
+  if (run?.aiAnalysis) {
+    try {
+      const existing = JSON.parse(run.aiAnalysis);
+      merged = { ...existing, executionError: reason };
+    } catch {
+      // existing aiAnalysis wasn't JSON — keep it as a field
+      merged = { rawAnalysis: run.aiAnalysis, executionError: reason };
+    }
+  }
+
+  await prisma.testRun.update({
+    where: { id: testRunId },
+    data: { status: 'ERROR', completedAt: new Date(), aiAnalysis: JSON.stringify(merged) },
+  });
 }
 
 // Map a GitHub Actions workflow_run conclusion/status → our TestRunStatus
@@ -50,7 +76,17 @@ export async function triggerTestExecution(testRunId: string): Promise<void> {
   const { owner, repo } = repoFollow;
   const token = await resolveToken(repoFollow.id);
   const octokit = makeOctokit(token);
-  const branch = testRun.branch ?? 'main';
+
+  // Use stored branch, or fall back to the repo's actual default branch
+  let branch = testRun.branch;
+  if (!branch) {
+    try {
+      const repoInfo = await getRepo(owner, repo, token);
+      branch = repoInfo.defaultBranch;
+    } catch {
+      branch = 'main';
+    }
+  }
 
   // Find a workflow that looks like CI/tests
   let workflowId: number | undefined;
@@ -66,14 +102,7 @@ export async function triggerTestExecution(testRunId: string): Promise<void> {
   }
 
   if (!workflowId) {
-    await prisma.testRun.update({
-      where: { id: testRunId },
-      data: {
-        status: 'ERROR',
-        completedAt: new Date(),
-        aiAnalysis: 'No dispatchable workflow found in repository.',
-      },
-    });
+    await markExecutionError(testRunId, 'No dispatchable workflow found in repository. Add a workflow with workflow_dispatch trigger, or set GITHUB_TOKEN.');
     return;
   }
 
@@ -85,10 +114,7 @@ export async function triggerTestExecution(testRunId: string): Promise<void> {
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error(`[testExecution] Dispatch failed for ${owner}/${repo}:`, msg);
-    await prisma.testRun.update({
-      where: { id: testRunId },
-      data: { status: 'ERROR', completedAt: new Date() },
-    });
+    await markExecutionError(testRunId, `Workflow dispatch failed: ${msg}`);
     return;
   }
 

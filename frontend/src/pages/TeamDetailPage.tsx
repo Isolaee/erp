@@ -24,7 +24,7 @@ function statusBadgeVariant(status: TestRunStatus): 'success' | 'danger' | 'warn
   }
 }
 
-function parseAiAnalysis(raw?: string): { reason?: string; suggestions?: string[] } {
+function parseAiAnalysis(raw?: string): { reason?: string; suggestions?: string[]; executionError?: string } {
   if (!raw) return {};
   try {
     const match = raw.match(/\{[\s\S]*\}/);
@@ -90,7 +90,7 @@ export function TeamDetailPage() {
 
   const triggerRun = useMutation({
     mutationFn: () =>
-      api.post('/testruns', { repoFollowId: selectedFollow!.id, branch: selectedRepo?.repo }).then((r) => r.data),
+      api.post('/testruns', { repoFollowId: selectedFollow!.id }).then((r) => r.data),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['testruns', selectedFollow?.id] }),
   });
 
@@ -445,6 +445,13 @@ export function TeamDetailPage() {
                         {analysis.suggestions!.map((s, i) => <li key={i}>{s}</li>)}
                       </ul>
                     )}
+                  </div>
+                )}
+
+                {/* Execution error */}
+                {analysis.executionError && (
+                  <div className="rounded-lg bg-red-50 border border-red-100 px-3 py-2 text-xs text-red-700">
+                    <span className="font-medium">Execution error: </span>{analysis.executionError}
                   </div>
                 )}
               </div>
