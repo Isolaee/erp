@@ -65,9 +65,38 @@ export function TeamDetailPage() {
   const canManage = user?.role === 'ADMIN' ||
     team?.members?.some((m) => m.userId === user?.id && m.role !== 'MEMBER');
 
+  const parseGithubUrl = (raw: string): { owner: string; repo: string } | null => {
+    try {
+      const url = new URL(raw);
+      if (url.hostname === 'github.com') {
+        const parts = url.pathname.replace(/^\//, '').split('/');
+        if (parts.length >= 2 && parts[0] && parts[1]) {
+          return { owner: parts[0], repo: parts[1].replace(/\.git$/, '') };
+        }
+      }
+    } catch {
+      // not a URL — check for "owner/repo" shorthand
+      const parts = raw.split('/');
+      if (parts.length === 2 && parts[0] && parts[1]) {
+        return { owner: parts[0], repo: parts[1] };
+      }
+    }
+    return null;
+  };
+
   const handleAddRepo = async (e: React.FormEvent) => {
     e.preventDefault();
-    await api.post(`/teams/${id}/repos`, { owner, repo });
+    let resolvedOwner = owner.trim();
+    let resolvedRepo = repo.trim();
+
+    // If owner field looks like a URL or "owner/repo", parse it
+    const parsed = parseGithubUrl(resolvedOwner) ?? parseGithubUrl(resolvedRepo);
+    if (parsed) {
+      resolvedOwner = parsed.owner;
+      resolvedRepo = parsed.repo;
+    }
+
+    await api.post(`/teams/${id}/repos`, { owner: resolvedOwner, repo: resolvedRepo });
     queryClient.invalidateQueries({ queryKey: ['teams', id] });
     setOwner(''); setRepo(''); setAddRepoOpen(false);
   };
@@ -300,12 +329,12 @@ export function TeamDetailPage() {
       <Modal open={addRepoOpen} onClose={() => setAddRepoOpen(false)} title="Follow Repository">
         <form onSubmit={handleAddRepo} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Owner</label>
-            <input value={owner} onChange={(e) => setOwner(e.target.value)} placeholder="e.g. facebook" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" required autoFocus />
+            <label className="block text-sm font-medium text-gray-700 mb-1">Owner or full URL</label>
+            <input value={owner} onChange={(e) => setOwner(e.target.value)} placeholder="e.g. facebook  or  https://github.com/facebook/react" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" required autoFocus />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Repository</label>
-            <input value={repo} onChange={(e) => setRepo(e.target.value)} placeholder="e.g. react" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" required />
+            <input value={repo} onChange={(e) => setRepo(e.target.value)} placeholder="e.g. react" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
           <div className="flex justify-end gap-2">
             <button type="button" onClick={() => setAddRepoOpen(false)} className="rounded-lg border border-gray-300 px-4 py-2 text-sm">Cancel</button>
