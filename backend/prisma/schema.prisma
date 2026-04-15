@@ -87,6 +87,8 @@ model Team {
   id          String    @id @default(uuid())
   name        String
   description String?
+  // PAT stored plaintext for POC — encrypt at rest (e.g. AES-256) before production use
+  githubPat   String?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   deletedAt   DateTime?

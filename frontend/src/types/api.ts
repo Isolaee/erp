@@ -22,6 +22,7 @@ export interface Team {
   name: string;
   description?: string;
   createdAt: string;
+  hasGithubPat?: boolean;
   _count?: { members: number };
   members?: TeamMember[];
   repoFollows?: RepoFollow[];

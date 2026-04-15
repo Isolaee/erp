@@ -9,6 +9,16 @@ import { createError } from '../middleware/errorHandler';
 const router = Router();
 router.use(verifyAccessToken);
 
+// Strip the raw PAT value from any team object before sending it over the wire.
+// Returns a `hasGithubPat` boolean so the UI can show the "configured" badge
+// without ever exposing the token itself.
+function sanitizeTeam<T extends { githubPat?: string | null }>(
+  team: T,
+): Omit<T, 'githubPat'> & { hasGithubPat: boolean } {
+  const { githubPat, ...rest } = team;
+  return { ...rest, hasGithubPat: !!githubPat };
+}
+
 // GET /api/teams
 router.get('/', async (req: Request, res: Response) => {
   const where = req.user!.role === UserRole.ADMIN
@@ -20,7 +30,7 @@ router.get('/', async (req: Request, res: Response) => {
     include: { _count: { select: { members: true } } },
     orderBy: { name: 'asc' },
   });
-  res.json(teams);
+  res.json(teams.map(sanitizeTeam));
 });
 
 // POST /api/teams
@@ -36,7 +46,7 @@ router.post('/', requireRole(UserRole.ADMIN), async (req: Request, res: Response
       members: { create: { userId: req.user!.id, role: UserRole.ADMIN } },
     },
   });
-  res.status(201).json(team);
+  res.status(201).json(sanitizeTeam(team));
 });
 
 // GET /api/teams/:id
@@ -55,7 +65,7 @@ router.get('/:id', async (req: Request, res: Response) => {
   const isMember = team.members.some((m) => m.userId === req.user!.id);
   if (!isMember && req.user!.role !== UserRole.ADMIN) throw createError(403, 'Forbidden');
 
-  res.json(team);
+  res.json(sanitizeTeam(team));
 });
 
 // PATCH /api/teams/:id
@@ -73,13 +83,37 @@ router.patch('/:id', async (req: Request, res: Response) => {
   }).parse(req.body);
 
   const team = await prisma.team.update({ where: { id: req.params.id }, data: body });
-  res.json(team);
+  res.json(sanitizeTeam(team));
 });
 
 // DELETE /api/teams/:id
 router.delete('/:id', requireRole(UserRole.ADMIN), async (req: Request, res: Response) => {
   await prisma.team.update({ where: { id: req.params.id }, data: { deletedAt: new Date() } });
   res.status(204).end();
+});
+
+// PUT /api/teams/:id/github-pat
+// Save or clear the team-level GitHub PAT used for all repo API calls.
+// Send { pat: null } to remove an existing PAT.
+router.put('/:id/github-pat', async (req: Request, res: Response) => {
+  const membership = await prisma.teamMember.findUnique({
+    where: { userId_teamId: { userId: req.user!.id, teamId: req.params.id } },
+  });
+  const canManage = req.user!.role === UserRole.ADMIN ||
+    (membership && membership.role !== UserRole.MEMBER);
+  if (!canManage) throw createError(403, 'Forbidden');
+
+  const body = z.object({
+    // null clears the PAT; a non-empty string sets it
+    pat: z.string().min(1).nullable(),
+  }).parse(req.body);
+
+  await prisma.team.update({
+    where: { id: req.params.id },
+    data: { githubPat: body.pat },
+  });
+
+  res.json({ hasGithubPat: body.pat !== null });
 });
 
 // GET /api/teams/:id/members
