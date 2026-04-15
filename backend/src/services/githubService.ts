@@ -79,6 +79,38 @@ export async function getPulls(owner: string, repo: string, page = 1, token?: st
   });
 }
 
+// Returns per-file diffs for a single commit. Not cached — commit SHAs are immutable
+// but we only ever fetch each once (triggered by a webhook event).
+export async function getCommitFiles(owner: string, repo: string, sha: string, token?: string | null) {
+  const { data } = await makeOctokit(token).repos.getCommit({ owner, repo, ref: sha });
+  return (data.files ?? []).map((f) => ({
+    filename: f.filename,
+    status: f.status,
+    additions: f.additions,
+    deletions: f.deletions,
+    patch: f.patch ?? null,
+  }));
+}
+
+// Returns per-file diffs for a pull request. Not cached.
+export async function getPullRequestFiles(
+  owner: string,
+  repo: string,
+  pullNumber: number,
+  token?: string | null,
+) {
+  const { data } = await makeOctokit(token).pulls.listFiles({
+    owner, repo, pull_number: pullNumber, per_page: 100,
+  });
+  return data.map((f) => ({
+    filename: f.filename,
+    status: f.status,
+    additions: f.additions,
+    deletions: f.deletions,
+    patch: f.patch ?? null,
+  }));
+}
+
 export async function getCommits(owner: string, repo: string, page = 1, token?: string | null) {
   const cacheKey = `gh:commits:${owner}:${repo}:${page}:${tokenSuffix(token)}`;
   return cached(cacheKey, async () => {

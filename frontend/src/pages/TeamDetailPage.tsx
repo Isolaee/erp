@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { ArrowLeft, Plus, GitBranch, ExternalLink, KeyRound, Eye, EyeOff, CheckCircle2, Trash2 } from 'lucide-react';
-import type { Team, GithubIssue, GithubPR, GithubCommit } from '../types/api';
+import { ArrowLeft, Plus, GitBranch, ExternalLink, KeyRound, Eye, EyeOff, CheckCircle2, Trash2, Play, FlaskConical } from 'lucide-react';
+import type { Team, GithubIssue, GithubPR, GithubCommit, TestRun, TestRunsPage, TestRunStatus } from '../types/api';
 import { Badge } from '../components/shared/Badge';
 import { Spinner } from '../components/shared/Spinner';
 import { Modal } from '../components/shared/Modal';
@@ -10,7 +10,28 @@ import api from '../lib/api';
 import { queryClient } from '../lib/queryClient';
 import { useAuth } from '../context/AuthContext';
 
-type Tab = 'members' | 'repos' | 'issues' | 'pulls' | 'commits';
+type Tab = 'members' | 'repos' | 'issues' | 'pulls' | 'commits' | 'tests';
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function statusBadgeVariant(status: TestRunStatus): 'success' | 'danger' | 'warning' | 'muted' | 'default' {
+  switch (status) {
+    case 'PASSED':    return 'success';
+    case 'FAILED':    return 'danger';
+    case 'ERROR':     return 'warning';
+    case 'RUNNING':   return 'default';
+    default:          return 'muted';
+  }
+}
+
+function parseAiAnalysis(raw?: string): { reason?: string; suggestions?: string[] } {
+  if (!raw) return {};
+  try {
+    const match = raw.match(/\{[\s\S]*\}/);
+    if (match) return JSON.parse(match[0]);
+  } catch { /* ignore */ }
+  return {};
+}
 
 export function TeamDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -48,6 +69,29 @@ export function TeamDetailPage() {
     queryKey: ['github', selectedRepo?.owner, selectedRepo?.repo, 'commits'],
     queryFn: () => api.get(`/github/repos/${selectedRepo!.owner}/${selectedRepo!.repo}/commits`).then((r) => r.data),
     enabled: !!selectedRepo && tab === 'commits',
+  });
+
+  // Resolve repoFollowId for the selected repo
+  const selectedFollow = team?.repoFollows?.find(
+    (r) => r.owner === selectedRepo?.owner && r.repo === selectedRepo?.repo,
+  );
+
+  const { data: testRunsPage, isLoading: testRunsLoading } = useQuery<TestRunsPage>({
+    queryKey: ['testruns', selectedFollow?.id],
+    queryFn: () =>
+      api.get('/testruns', { params: { repoFollowId: selectedFollow!.id } }).then((r) => r.data),
+    enabled: !!selectedFollow && tab === 'tests',
+    refetchInterval: (query) => {
+      // Poll while any run is PENDING or RUNNING
+      const runs: TestRun[] = query.state.data?.runs ?? [];
+      return runs.some((r) => r.status === 'PENDING' || r.status === 'RUNNING') ? 4000 : false;
+    },
+  });
+
+  const triggerRun = useMutation({
+    mutationFn: () =>
+      api.post('/testruns', { repoFollowId: selectedFollow!.id, branch: selectedRepo?.repo }).then((r) => r.data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['testruns', selectedFollow?.id] }),
   });
 
   const savePat = useMutation({
@@ -120,7 +164,7 @@ export function TeamDetailPage() {
   if (isLoading) return <div className="flex justify-center py-12"><Spinner /></div>;
   if (!team) return <div className="text-red-600 p-4">Team not found.</div>;
 
-  const tabs: Tab[] = ['members', 'repos', ...(selectedRepo ? ['issues', 'pulls', 'commits'] as Tab[] : [])];
+  const tabs: Tab[] = ['members', 'repos', ...(selectedRepo ? ['issues', 'pulls', 'commits', 'tests'] as Tab[] : [])];
 
   return (
     <div className="max-w-4xl mx-auto space-y-4">
@@ -323,6 +367,89 @@ export function TeamDetailPage() {
               <span className="text-xs text-gray-400">{c.author}</span>
             </a>
           ))}
+        </div>
+      )}
+
+      {tab === 'tests' && selectedRepo && selectedFollow && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-gray-500 font-medium flex items-center gap-1">
+              <FlaskConical className="h-3.5 w-3.5" />
+              {selectedRepo.owner}/{selectedRepo.repo} — Test Runs
+            </p>
+            <button
+              onClick={() => triggerRun.mutate()}
+              disabled={triggerRun.isPending}
+              className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+            >
+              <Play className="h-3.5 w-3.5" />
+              {triggerRun.isPending ? 'Starting…' : 'Run Tests'}
+            </button>
+          </div>
+
+          {testRunsLoading && <Spinner />}
+
+          {!testRunsLoading && (testRunsPage?.runs.length ?? 0) === 0 && (
+            <p className="text-sm text-gray-400 text-center py-8">No test runs yet. Click "Run Tests" to trigger one.</p>
+          )}
+
+          {testRunsPage?.runs.map((run) => {
+            const analysis = parseAiAnalysis(run.aiAnalysis);
+            return (
+              <div key={run.id} className="rounded-xl border border-gray-200 bg-white px-4 py-3 space-y-2">
+                {/* Header row */}
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Badge variant={statusBadgeVariant(run.status)}>{run.status}</Badge>
+                    <span className="text-xs text-gray-400 uppercase tracking-wide">{run.trigger}</span>
+                    {run.branch && (
+                      <span className="flex items-center gap-1 text-xs text-gray-500 font-mono truncate">
+                        <GitBranch className="h-3 w-3 shrink-0" />{run.branch}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {run.ghRunUrl && (
+                      <a href={run.ghRunUrl} target="_blank" rel="noreferrer" className="text-gray-400 hover:text-gray-600" title="View on GitHub Actions">
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      </a>
+                    )}
+                    <span className="text-xs text-gray-400">
+                      {new Date(run.createdAt).toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Commit message */}
+                {run.commitMessage && (
+                  <p className="text-xs text-gray-600 truncate">
+                    {run.commitSha && <span className="font-mono text-gray-400 mr-1">{run.commitSha.slice(0, 7)}</span>}
+                    {run.commitMessage.split('\n')[0]}
+                  </p>
+                )}
+
+                {/* AI analysis */}
+                {analysis.reason && (
+                  <div className="rounded-lg bg-gray-50 px-3 py-2 text-xs space-y-1">
+                    <p className="font-medium text-gray-700 flex items-center gap-1">
+                      AI Analysis
+                      {run.aiNeedsUpdate != null && (
+                        <Badge variant={run.aiNeedsUpdate ? 'warning' : 'success'} className="ml-1">
+                          {run.aiNeedsUpdate ? 'Tests need update' : 'Tests OK'}
+                        </Badge>
+                      )}
+                    </p>
+                    <p className="text-gray-500">{analysis.reason}</p>
+                    {(analysis.suggestions?.length ?? 0) > 0 && (
+                      <ul className="list-disc list-inside text-gray-500 space-y-0.5 mt-1">
+                        {analysis.suggestions!.map((s, i) => <li key={i}>{s}</li>)}
+                      </ul>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 

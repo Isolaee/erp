@@ -15,6 +15,8 @@ import githubRouter    from './routes/github';
 import aiRouter        from './routes/ai';
 import eventsRouter    from './routes/events';
 import docsRouter      from './routes/docs';
+import webhooksRouter  from './routes/webhooks';
+import testrunsRouter  from './routes/testruns';
 import { errorHandler } from './middleware/errorHandler';
 import { startDocSyncPoller } from './services/docSyncService';
 
@@ -24,6 +26,11 @@ app.use(cors({
   origin: config.FRONTEND_URL,
   credentials: true,
 }));
+
+// Webhook routes must be mounted BEFORE express.json() — they use express.raw() internally
+// so that the raw body is available for GitHub HMAC-SHA256 signature validation.
+app.use('/api/webhooks', webhooksRouter);
+
 app.use(express.json());
 app.use(cookieParser());
 
@@ -41,7 +48,8 @@ app.use('/api/dashboard', dashboardRouter);
 app.use('/api/github',    githubRouter);
 app.use('/api/ai',      aiRouter);
 app.use('/api/events',  eventsRouter);
-app.use('/api/docs',    docsRouter);
+app.use('/api/docs',     docsRouter);
+app.use('/api/testruns', testrunsRouter);
 
 app.use(errorHandler);
 

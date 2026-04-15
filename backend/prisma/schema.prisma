@@ -52,6 +52,21 @@ enum DocVisibility {
   ORGANIZATION
 }
 
+enum TestRunStatus {
+  PENDING
+  RUNNING
+  PASSED
+  FAILED
+  ERROR
+  CANCELLED
+}
+
+enum TestRunTrigger {
+  PUSH
+  PULL_REQUEST
+  MANUAL
+}
+
 enum ListVisibility {
   PRIVATE
   TEAM
@@ -140,11 +155,56 @@ model RepoFollow {
   addedAt       DateTime  @default(now())
   lastSyncAt    DateTime?
 
-  team    Team  @relation(fields: [teamId], references: [id])
-  addedBy User? @relation(fields: [addedByUserId], references: [id])
-  docs    Doc[]
+  team     Team      @relation(fields: [teamId], references: [id])
+  addedBy  User?     @relation(fields: [addedByUserId], references: [id])
+  docs     Doc[]
+  testRuns TestRun[]
 
   @@unique([teamId, owner, repo])
+}
+
+model TestRun {
+  id           String         @id @default(uuid())
+  repoFollowId String
+  status       TestRunStatus  @default(PENDING)
+  trigger      TestRunTrigger @default(MANUAL)
+  // branch/commit context from webhook or manual trigger
+  branch        String?
+  commitSha     String?
+  commitMessage String?
+  prNumber      Int?
+  // AI analysis result
+  aiNeedsUpdate Boolean?
+  aiAnalysis   String?        @db.Text
+  // GitHub Actions run details (if triggered via Actions API)
+  ghRunId      BigInt?
+  ghRunUrl     String?
+  // timing
+  startedAt    DateTime?
+  completedAt  DateTime?
+  createdAt    DateTime       @default(now())
+
+  repoFollow  RepoFollow   @relation(fields: [repoFollowId], references: [id])
+  testResults TestResult[]
+
+  @@index([repoFollowId])
+  @@index([repoFollowId, createdAt])
+}
+
+model TestResult {
+  id           String        @id @default(uuid())
+  testRunId    String
+  suiteName    String?
+  testName     String
+  status       TestRunStatus
+  duration     Int?          // milliseconds
+  errorMessage String?       @db.Text
+  errorStack   String?       @db.Text
+  createdAt    DateTime      @default(now())
+
+  testRun TestRun @relation(fields: [testRunId], references: [id], onDelete: Cascade)
+
+  @@index([testRunId])
 }
 
 model TaskList {

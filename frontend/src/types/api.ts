@@ -166,6 +166,50 @@ export interface DocSummary {
   rank?: number;
 }
 
+// Test run types
+export type TestRunStatus = 'PENDING' | 'RUNNING' | 'PASSED' | 'FAILED' | 'ERROR' | 'CANCELLED';
+export type TestRunTrigger = 'PUSH' | 'PULL_REQUEST' | 'MANUAL';
+
+export interface TestRun {
+  id: string;
+  repoFollowId: string;
+  status: TestRunStatus;
+  trigger: TestRunTrigger;
+  branch?: string;
+  commitSha?: string;
+  commitMessage?: string;
+  prNumber?: number;
+  aiNeedsUpdate?: boolean;
+  aiAnalysis?: string;       // raw JSON string from Claude
+  ghRunId?: string;          // BigInt serialised as string
+  ghRunUrl?: string;
+  startedAt?: string;
+  completedAt?: string;
+  createdAt: string;
+  testResults?: TestResult[];
+  repoFollow?: Pick<RepoFollow, 'id' | 'owner' | 'repo'>;
+  _count?: { testResults: number };
+}
+
+export interface TestResult {
+  id: string;
+  testRunId: string;
+  suiteName?: string;
+  testName: string;
+  status: TestRunStatus;
+  duration?: number;         // milliseconds
+  errorMessage?: string;
+  errorStack?: string;
+  createdAt: string;
+}
+
+export interface TestRunsPage {
+  runs: TestRun[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
 // GitHub types
 export interface GithubRepo {
   id: number;
