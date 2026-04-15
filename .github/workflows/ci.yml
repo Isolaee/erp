@@ -3,6 +3,7 @@ name: CI
 on:
   push:
   pull_request:
+  workflow_dispatch:   # allow manual trigger from the GitHub Actions UI
 
 jobs:
   # ─────────────────────────────────────────────────────────────────────────────
@@ -10,7 +11,7 @@ jobs:
   # ─────────────────────────────────────────────────────────────────────────────
   typecheck:
     name: Type Check
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, docker]
 
     steps:
       - uses: actions/checkout@v4
@@ -38,7 +39,7 @@ jobs:
   # ─────────────────────────────────────────────────────────────────────────────
   test:
     name: Test Suite
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, docker]
 
     services:
       postgres:
