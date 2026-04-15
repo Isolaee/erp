@@ -111,6 +111,97 @@ export async function getPullRequestFiles(
   }));
 }
 
+// ─── File I/O (used by testWriterService) ────────────────────────────────────
+
+export type DirEntry = { name: string; path: string; type: 'file' | 'dir' };
+
+// List files/dirs at a path. Returns [] for missing paths or non-directories.
+export async function listDirectory(
+  owner: string,
+  repo: string,
+  path: string,
+  ref: string,
+  token?: string | null,
+): Promise<DirEntry[]> {
+  try {
+    const { data } = await makeOctokit(token).repos.getContent({ owner, repo, path, ref });
+    if (!Array.isArray(data)) return [];
+    return data.map((e) => ({ name: e.name, path: e.path, type: e.type === 'dir' ? 'dir' : 'file' }));
+  } catch {
+    return [];
+  }
+}
+
+// Read a single file. Returns null for missing files, binary files, or files > maxBytes.
+export async function getFileContent(
+  owner: string,
+  repo: string,
+  path: string,
+  ref: string,
+  token?: string | null,
+  maxBytes = 100_000,
+): Promise<{ content: string; sha: string } | null> {
+  try {
+    const { data } = await makeOctokit(token).repos.getContent({ owner, repo, path, ref });
+    if (Array.isArray(data) || data.type !== 'file') return null;
+    if (!data.content) return null;
+    const decoded = Buffer.from(data.content, 'base64').toString('utf8');
+    if (decoded.length > maxBytes) return null; // too large — skip
+    return { content: decoded, sha: data.sha };
+  } catch {
+    return null;
+  }
+}
+
+// Commit multiple file writes as a single Git commit using the Data API.
+// Returns the new commit SHA. Requires a token with repo write access.
+export async function commitFiles(
+  owner: string,
+  repo: string,
+  branch: string,
+  files: Array<{ path: string; content: string }>,
+  message: string,
+  token?: string | null,
+): Promise<string> {
+  const octokit = makeOctokit(token);
+
+  // 1. Resolve current HEAD
+  const { data: refData } = await octokit.git.getRef({ owner, repo, ref: `heads/${branch}` });
+  const headSha = refData.object.sha;
+
+  // 2. Get the tree SHA of the current commit
+  const { data: commitData } = await octokit.git.getCommit({ owner, repo, commit_sha: headSha });
+  const baseTreeSha = commitData.tree.sha;
+
+  // 3. Create a blob for every file
+  const treeItems = await Promise.all(
+    files.map(async (f) => {
+      const { data: blob } = await octokit.git.createBlob({
+        owner,
+        repo,
+        content: Buffer.from(f.content).toString('base64'),
+        encoding: 'base64',
+      });
+      return { path: f.path, mode: '100644' as const, type: 'blob' as const, sha: blob.sha };
+    }),
+  );
+
+  // 4. Create new tree on top of the existing one
+  const { data: newTree } = await octokit.git.createTree({
+    owner, repo, base_tree: baseTreeSha, tree: treeItems,
+  });
+
+  // 5. Create the commit
+  const { data: newCommit } = await octokit.git.createCommit({
+    owner, repo, message, tree: newTree.sha, parents: [headSha],
+  });
+
+  // 6. Fast-forward the branch ref
+  await octokit.git.updateRef({ owner, repo, ref: `heads/${branch}`, sha: newCommit.sha });
+
+  return newCommit.sha;
+}
+
 export async function getCommits(owner: string, repo: string, page = 1, token?: string | null) {
   const cacheKey = `gh:commits:${owner}:${repo}:${page}:${tokenSuffix(token)}`;
   return cached(cacheKey, async () => {

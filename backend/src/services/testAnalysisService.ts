@@ -4,6 +4,7 @@ import { config } from '../config';
 import { emit } from './sseService';
 import { getCommitFiles, getPullRequestFiles } from './githubService';
 import { triggerTestExecution } from './testExecutionService';
+import { writeTests } from './testWriterService';
 
 const anthropic = new Anthropic({ apiKey: config.ANTHROPIC_API_KEY });
 
@@ -191,8 +192,39 @@ export async function analyzeTestRun(testRunId: string): Promise<void> {
     });
   }
 
-  // For MANUAL triggers, GitHub won't auto-run CI — dispatch the workflow ourselves.
-  // PUSH/PR triggers: GitHub Actions already fires from the event; we await workflow_run webhook.
+  // ── Optionally write/update tests ───────────────────────────────────────────
+  // When the analysis says tests need updating, run the writer agent.
+  // It reads existing tests, writes new/updated files, and commits them.
+  // After the commit, update commitSha so the workflow_run webhook can match.
+  if (result.needsUpdate) {
+    try {
+      const { filesWritten, newCommitSha, summary } = await writeTests(testRunId, diffText);
+
+      if (filesWritten.length > 0) {
+        const updatedAnalysis = JSON.stringify({
+          ...result,
+          testFilesWritten: filesWritten,
+          writerSummary: summary,
+        });
+        await prisma.testRun.update({
+          where: { id: testRunId },
+          data: {
+            aiAnalysis: updatedAnalysis,
+            // Point to the new commit so workflow_run webhook matches correctly
+            ...(newCommitSha && { commitSha: newCommitSha }),
+          },
+        });
+        console.log(`[testAnalysis] ${testRunId} — wrote ${filesWritten.length} test file(s)`);
+      }
+    } catch (err) {
+      console.error(`[testAnalysis] writeTests failed for ${testRunId}:`, err);
+    }
+  }
+
+  // ── Trigger CI ──────────────────────────────────────────────────────────────
+  // MANUAL: GitHub won't auto-run CI — dispatch the workflow ourselves.
+  // PUSH/PR: GitHub Actions fires automatically from the original event
+  //          (or from the test-update commit we just pushed).
   if (testRun.trigger === 'MANUAL') {
     triggerTestExecution(testRunId).catch((err) => {
       console.error(`[testAnalysis] triggerTestExecution failed for ${testRunId}:`, err);

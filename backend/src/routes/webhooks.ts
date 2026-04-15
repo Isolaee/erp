@@ -6,6 +6,7 @@ import { config } from '../config';
 import { emit } from '../services/sseService';
 import { analyzeTestRun } from '../services/testAnalysisService';
 import { handleWorkflowRunEvent } from '../services/testExecutionService';
+import { COMMIT_MESSAGE_PREFIX } from '../services/testWriterService';
 import { TestRunTrigger } from '@prisma/client';
 
 const router = Router();
@@ -94,6 +95,12 @@ async function handleWebhookEvent(event: string, payload: Record<string, any>) {
     branch = (payload.ref as string | undefined)?.replace('refs/heads/', '');
     commitSha = payload.after;
     commitMessage = payload.head_commit?.message;
+
+    // Skip commits made by our own test-writer agent to avoid an infinite trigger loop
+    if (commitMessage?.startsWith(COMMIT_MESSAGE_PREFIX)) {
+      console.log(`[webhook] Skipping test-update commit on ${branch}`);
+      return;
+    }
   } else if (event === 'pull_request') {
     branch = payload.pull_request?.head?.ref;
     commitSha = payload.pull_request?.head?.sha;
