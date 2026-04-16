@@ -3,8 +3,8 @@ import { prisma } from '../lib/prisma';
 import { config } from '../config';
 import { emit } from './sseService';
 import { getCommitFiles, getPullRequestFiles } from './githubService';
-import { triggerTestExecution } from './testExecutionService';
 import { writeTests } from './testWriterService';
+import { startDockerTestRun } from './dockerTestService';
 
 const anthropic = new Anthropic({ apiKey: config.ANTHROPIC_API_KEY });
 
@@ -221,13 +221,31 @@ export async function analyzeTestRun(testRunId: string): Promise<void> {
     }
   }
 
-  // ── Trigger CI ──────────────────────────────────────────────────────────────
-  // MANUAL: GitHub won't auto-run CI — dispatch the workflow ourselves.
-  // PUSH/PR: GitHub Actions fires automatically from the original event
-  //          (or from the test-update commit we just pushed).
-  if (testRun.trigger === 'MANUAL') {
-    triggerTestExecution(testRunId).catch((err) => {
-      console.error(`[testAnalysis] triggerTestExecution failed for ${testRunId}:`, err);
+  // ── Trigger Docker test execution ───────────────────────────────────────────
+  // Always run via the Docker test-runner service. Use the new commit SHA if
+  // writeTests pushed test files, otherwise use the original commit SHA.
+  const executionSha = (await prisma.testRun.findUnique({
+    where: { id: testRunId },
+    select: { commitSha: true },
+  }))?.commitSha ?? testRun.commitSha;
+
+  if (executionSha) {
+    const token = await resolveToken(repoFollow.id);
+    startDockerTestRun(
+      testRunId,
+      owner,
+      repo,
+      executionSha,
+      testRun.branch ?? 'main',
+      token,
+    ).catch((err) => {
+      console.error(`[testAnalysis] startDockerTestRun failed for ${testRunId}:`, err);
+    });
+  } else {
+    console.warn(`[testAnalysis] No commit SHA for ${testRunId} — skipping Docker execution`);
+    await prisma.testRun.update({
+      where: { id: testRunId },
+      data: { status: 'ERROR', completedAt: new Date() },
     });
   }
 }

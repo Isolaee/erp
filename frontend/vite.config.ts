@@ -8,4 +8,15 @@ export default defineConfig({
     host: '0.0.0.0',
     port: 5173,
   },
+  test: {
+    environment: 'jsdom',
+    globals: true,
+    setupFiles: ['./src/test/setup.ts'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'lcov'],
+      include: ['src/**/*.{ts,tsx}'],
+      exclude: ['src/main.tsx', 'src/**/*.d.ts'],
+    },
+  },
 })

@@ -182,6 +182,27 @@ router.post('/:id/repos', requireRole(UserRole.TEAM_LEAD), async (req: Request, 
   res.status(201).json(follow);
 });
 
+// PATCH /api/teams/:id/repos/:repoId
+// Toggle per-repo settings. Currently only aiTestingEnabled is patchable.
+router.patch('/:id/repos/:repoId', async (req: Request, res: Response) => {
+  const membership = await prisma.teamMember.findUnique({
+    where: { userId_teamId: { userId: req.user!.id, teamId: req.params.id } },
+  });
+  const canManage = req.user!.role === UserRole.ADMIN ||
+    (membership && membership.role !== UserRole.MEMBER);
+  if (!canManage) throw createError(403, 'Forbidden');
+
+  const body = z.object({
+    aiTestingEnabled: z.boolean().optional(),
+  }).parse(req.body);
+
+  const follow = await prisma.repoFollow.update({
+    where: { id: req.params.repoId },
+    data: body,
+  });
+  res.json(follow);
+});
+
 // DELETE /api/teams/:id/repos/:repoId
 router.delete('/:id/repos/:repoId', requireRole(UserRole.TEAM_LEAD), async (req: Request, res: Response) => {
   await prisma.repoFollow.delete({ where: { id: req.params.repoId } });

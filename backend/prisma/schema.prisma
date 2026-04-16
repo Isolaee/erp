@@ -147,13 +147,14 @@ model Invite {
 }
 
 model RepoFollow {
-  id            String    @id @default(uuid())
-  teamId        String
-  owner         String
-  repo          String
-  addedByUserId String?
-  addedAt       DateTime  @default(now())
-  lastSyncAt    DateTime?
+  id               String    @id @default(uuid())
+  teamId           String
+  owner            String
+  repo             String
+  addedByUserId    String?
+  addedAt          DateTime  @default(now())
+  lastSyncAt       DateTime?
+  aiTestingEnabled Boolean   @default(true)
 
   team     Team      @relation(fields: [teamId], references: [id])
   addedBy  User?     @relation(fields: [addedByUserId], references: [id])

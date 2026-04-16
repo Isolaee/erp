@@ -36,6 +36,9 @@ services:
       DATABASE_URL: postgresql://erp:erp@postgres:5432/erp
       REDIS_URL: redis://redis:6379
       NODE_ENV: development
+      TEST_RUNNER_URL: http://test-runner:4000
+      BACKEND_URL: http://backend:3001
+      INTERNAL_SECRET: ${INTERNAL_SECRET:-change-this-in-production-16}
     env_file:
       - ./backend/.env
     ports:
@@ -59,6 +62,24 @@ services:
       - ./frontend:/app
       - frontend_modules:/app/node_modules
     command: sh -c "npm install && npm run dev -- --host"
+
+  test-runner:
+    build:
+      context: ./test-runner
+      dockerfile: Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      PORT: 4000
+      # Must match backend's INTERNAL_SECRET
+      INTERNAL_SECRET: ${INTERNAL_SECRET:-change-this-in-production-16}
+    ports:
+      - "4000:4000"
+    # test-runner needs internet access to clone repos (no docker socket needed)
+    restart: unless-stopped
 
 volumes:
   postgres_data:

@@ -76,9 +76,9 @@ async function handleWebhookEvent(event: string, payload: Record<string, any>) {
   const repoName: string | undefined = payload.repository?.name;
   if (!repoOwner || !repoName) return;
 
-  // Find all RepoFollow records that track this repo
+  // Find all RepoFollow records that track this repo and have AI testing enabled
   const follows = await prisma.repoFollow.findMany({
-    where: { owner: repoOwner, repo: repoName },
+    where: { owner: repoOwner, repo: repoName, aiTestingEnabled: true },
     include: { team: { include: { members: { select: { userId: true } } } } },
   });
   if (follows.length === 0) return;

@@ -16,6 +16,10 @@ const envSchema = z.object({
   FRONTEND_URL: z.string().url(),
   PORT: z.coerce.number().default(3001),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+  // Docker test runner
+  TEST_RUNNER_URL: z.string().url().default('http://test-runner:4000'),
+  BACKEND_URL: z.string().url().default('http://backend:3001'),
+  INTERNAL_SECRET: z.string().min(16).default('change-this-in-production-16'),
 });
 
 const parsed = envSchema.safeParse(process.env);

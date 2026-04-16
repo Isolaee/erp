@@ -17,6 +17,7 @@ import eventsRouter    from './routes/events';
 import docsRouter      from './routes/docs';
 import webhooksRouter  from './routes/webhooks';
 import testrunsRouter  from './routes/testruns';
+import internalRouter  from './routes/internal';
 import { errorHandler } from './middleware/errorHandler';
 import { startDocSyncPoller } from './services/docSyncService';
 
@@ -49,7 +50,8 @@ app.use('/api/github',    githubRouter);
 app.use('/api/ai',      aiRouter);
 app.use('/api/events',  eventsRouter);
 app.use('/api/docs',     docsRouter);
-app.use('/api/testruns', testrunsRouter);
+app.use('/api/testruns',  testrunsRouter);
+app.use('/api/internal', internalRouter);
 
 app.use(errorHandler);
 
