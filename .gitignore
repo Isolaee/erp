@@ -41,4 +41,5 @@ Thumbs.db
 postgres_data/
 redis_data/
 
+# ── Enviroment ────────────────────────────────────────────────────────────────
 bashrc
