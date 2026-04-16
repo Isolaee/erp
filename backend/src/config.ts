@@ -20,6 +20,9 @@ const envSchema = z.object({
   TEST_RUNNER_URL: z.string().url().default('http://test-runner:4000'),
   BACKEND_URL: z.string().url().default('http://backend:3001'),
   INTERNAL_SECRET: z.string().min(16).default('change-this-in-production-16'),
+  // Local dev trigger — lets git hooks call /api/testruns without a JWT.
+  // Leave unset in production.
+  LOCAL_TRIGGER_SECRET: z.string().min(8).optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);

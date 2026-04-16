@@ -55,8 +55,21 @@ async function main() {
     },
   });
 
+  await prisma.repoFollow.upsert({
+    where: { teamId_owner_repo: { teamId: team.id, owner: 'Isolaee', repo: 'erp' } },
+    update: {},
+    create: {
+      teamId: team.id,
+      owner: 'Isolaee',
+      repo: 'erp',
+      addedByUserId: admin.id,
+      aiTestingEnabled: true,
+    },
+  });
+
   console.log(`Team: ${team.name}`);
   console.log(`Org list: ${orgList.title}`);
+  console.log('RepoFollow: Isolaee/erp');
   console.log('Seed complete.');
 }
 

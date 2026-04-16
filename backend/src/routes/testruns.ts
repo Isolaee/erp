@@ -1,11 +1,30 @@
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { prisma } from '../lib/prisma';
 import { verifyAccessToken } from '../middleware/auth';
 import { createError } from '../middleware/errorHandler';
 import { analyzeTestRun } from '../services/testAnalysisService';
+import { config } from '../config';
 
 const router = Router();
-router.use(verifyAccessToken);
+
+// All routes require JWT — except POST / which also accepts LOCAL_TRIGGER_SECRET.
+// The local secret allows git hooks to trigger runs without a browser session.
+function authOrLocalSecret(req: Request, res: Response, next: NextFunction): void {
+  const localSecret = req.headers['x-local-trigger-secret'] as string | undefined;
+  if (
+    localSecret &&
+    config.LOCAL_TRIGGER_SECRET &&
+    localSecret === config.LOCAL_TRIGGER_SECRET
+  ) {
+    // Attach a synthetic user so downstream code doesn't break
+    (req as any).user = { id: 'local-trigger', role: 'ADMIN' };
+    next();
+    return;
+  }
+  verifyAccessToken(req, res, next);
+}
+
+router.use(authOrLocalSecret);
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -72,10 +91,19 @@ router.get('/:id', async (req: Request, res: Response) => {
 // POST /api/testruns
 // Manually trigger a new test run for a followed repo.
 router.post('/', async (req: Request, res: Response) => {
-  const { repoFollowId, branch } = req.body as { repoFollowId?: string; branch?: string };
+  const { repoFollowId, branch, commitSha, commitMessage } = req.body as {
+    repoFollowId?: string;
+    branch?: string;
+    commitSha?: string;
+    commitMessage?: string;
+  };
   if (!repoFollowId) throw createError(400, 'repoFollowId is required');
+  if (!commitSha)    throw createError(400, 'commitSha is required');
 
-  await assertTeamAccess(req.user!.id, repoFollowId);
+  // Skip team membership check for local-trigger requests (no real user session)
+  if (req.user!.id !== 'local-trigger') {
+    await assertTeamAccess(req.user!.id, repoFollowId);
+  }
 
   const follow = await prisma.repoFollow.findUnique({ where: { id: repoFollowId } });
   if (!follow) throw createError(404, 'Repo follow not found');
@@ -83,9 +111,11 @@ router.post('/', async (req: Request, res: Response) => {
   const testRun = await prisma.testRun.create({
     data: {
       repoFollowId,
-      status:  'PENDING',
-      trigger: 'MANUAL',
-      branch:  branch ?? null,
+      status:    'PENDING',
+      trigger:   'MANUAL',
+      branch:    branch        ?? null,
+      commitSha: commitSha     ?? null,
+      commitMessage: commitMessage ?? null,
     },
   });
 

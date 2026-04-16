@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+# Triggers an AI test run on the local ERP backend after every push.
+# Install once:  ln -sf "$(pwd)/hooks/post-push" .git/hooks/post-push
+#
+# Required env vars (add to your shell profile, e.g. ~/.bashrc or ~/.zshrc):
+#   ERP_LOCAL_SECRET     — must match LOCAL_TRIGGER_SECRET in backend/.env
+#   ERP_REPO_FOLLOW_ID   — RepoFollow UUID for Isolaee/erp
+#                          find it: curl http://localhost:3001/api/teams/<teamId>/repos
+#                          or check the URL when clicking the repo in the UI
+# Optional:
+#   ERP_API_URL          — defaults to http://localhost:3001
+
+set -euo pipefail
+
+API_URL="${ERP_API_URL:-http://localhost:3001}"
+SECRET="${ERP_LOCAL_SECRET:-}"
+REPO_FOLLOW_ID="${ERP_REPO_FOLLOW_ID:-}"
+
+if [[ -z "$SECRET" || -z "$REPO_FOLLOW_ID" ]]; then
+  echo "[post-push] ERP_LOCAL_SECRET or ERP_REPO_FOLLOW_ID not set — skipping test trigger"
+  exit 0
+fi
+
+SHA=$(git rev-parse HEAD)
+BRANCH=$(git rev-parse --abbrev-ref HEAD)
+MSG=$(git log -1 --pretty=%s)
+MSG_JSON=$(python3 -c "import json,sys; print(json.dumps(sys.argv[1]))" "$MSG" 2>/dev/null || echo "\"${MSG//\"/\\\"}\"")
+
+HTTP_STATUS=$(curl -s -o /tmp/erp-trigger-response.json -w "%{http_code}" \
+  -X POST "${API_URL}/api/testruns" \
+  -H "Content-Type: application/json" \
+  -H "x-local-trigger-secret: ${SECRET}" \
+  -d "{
+    \"repoFollowId\": \"${REPO_FOLLOW_ID}\",
+    \"branch\": \"${BRANCH}\",
+    \"commitSha\": \"${SHA}\",
+    \"commitMessage\": ${MSG_JSON}
+  }")
+
+if [[ "$HTTP_STATUS" == "202" ]]; then
+  echo "[post-push] Test run queued — ${BRANCH}@${SHA:0:7}"
+else
+  echo "[post-push] Failed to queue test run (HTTP ${HTTP_STATUS})"
+  cat /tmp/erp-trigger-response.json 2>/dev/null && echo
+fi
