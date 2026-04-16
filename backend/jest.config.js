@@ -2,12 +2,16 @@
 module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
+  transform: {
+    '^.+\\.tsx?$': ['ts-jest', { diagnostics: false }],
+  },
   roots: ['<rootDir>/src'],
   testMatch: ['**/__tests__/**/*.test.ts'],
   setupFiles: ['<rootDir>/src/__tests__/setup.ts'],
   collectCoverageFrom: [
     'src/services/**/*.ts',
     'src/middleware/**/*.ts',
+    'src/routes/**/*.ts',
     '!src/**/*.d.ts',
   ],
   coverageDirectory: 'coverage',
