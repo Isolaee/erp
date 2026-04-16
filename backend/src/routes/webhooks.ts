@@ -5,7 +5,6 @@ import { prisma } from '../lib/prisma';
 import { config } from '../config';
 import { emit } from '../services/sseService';
 import { analyzeTestRun } from '../services/testAnalysisService';
-import { handleWorkflowRunEvent } from '../services/testExecutionService';
 import { COMMIT_MESSAGE_PREFIX } from '../services/testWriterService';
 import { TestRunTrigger } from '@prisma/client';
 
@@ -66,10 +65,6 @@ router.post('/github', async (req: Request, res: Response) => {
 });
 
 async function handleWebhookEvent(event: string, payload: Record<string, any>) {
-  if (event === 'workflow_run') {
-    await handleWorkflowRun(payload);
-    return;
-  }
   if (event !== 'push' && event !== 'pull_request') return;
 
   const repoOwner: string | undefined = payload.repository?.owner?.login;
@@ -142,23 +137,6 @@ async function handleWebhookEvent(event: string, payload: Record<string, any>) {
       console.error(`[webhook] analyzeTestRun failed for ${testRun.id}:`, err);
     });
   }
-}
-
-async function handleWorkflowRun(payload: Record<string, any>) {
-  const run       = payload.workflow_run;
-  const repoOwner = payload.repository?.owner?.login as string | undefined;
-  const repoName  = payload.repository?.name as string | undefined;
-  if (!run || !repoOwner || !repoName) return;
-
-  await handleWorkflowRunEvent(
-    repoOwner,
-    repoName,
-    run.id as number,
-    run.head_sha as string,
-    run.conclusion as string | null,
-    run.html_url as string,
-    run.status as string,
-  );
 }
 
 export default router;

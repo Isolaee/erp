@@ -195,7 +195,6 @@ export async function analyzeTestRun(testRunId: string): Promise<void> {
   // ── Optionally write/update tests ───────────────────────────────────────────
   // When the analysis says tests need updating, run the writer agent.
   // It reads existing tests, writes new/updated files, and commits them.
-  // After the commit, update commitSha so the workflow_run webhook can match.
   if (result.needsUpdate) {
     try {
       const { filesWritten, newCommitSha, summary } = await writeTests(testRunId, diffText);
@@ -210,7 +209,6 @@ export async function analyzeTestRun(testRunId: string): Promise<void> {
           where: { id: testRunId },
           data: {
             aiAnalysis: updatedAnalysis,
-            // Point to the new commit so workflow_run webhook matches correctly
             ...(newCommitSha && { commitSha: newCommitSha }),
           },
         });

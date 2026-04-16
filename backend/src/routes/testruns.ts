@@ -89,7 +89,6 @@ router.post('/', async (req: Request, res: Response) => {
     },
   });
 
-  // analyzeTestRun will call triggerTestExecution when analysis is done
   analyzeTestRun(testRun.id).catch((err) => {
     console.error(`[testruns] analyzeTestRun failed for ${testRun.id}:`, err);
   });
