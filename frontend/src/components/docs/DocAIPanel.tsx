@@ -107,10 +107,10 @@ export function DocAIPanel({ open, onClose, docId }: Props) {
             {toolCalls.map((tc, i) => (
               <div key={i} className="flex items-center gap-2 rounded bg-blue-50 px-2 py-1 text-xs">
                 <span className="font-mono font-medium text-blue-700">{tc.tool}</span>
-                {tc.input.heading && (
+                {!!tc.input.heading && (
                   <span className="text-gray-600 truncate">"{String(tc.input.heading)}"</span>
                 )}
-                {tc.input.reason && (
+                {!!tc.input.reason && (
                   <span className="text-gray-500 truncate italic">{String(tc.input.reason)}</span>
                 )}
               </div>

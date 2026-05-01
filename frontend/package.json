@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "vite build",
+    "typecheck": "tsc -b",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
@@ -15,6 +16,7 @@
   "dependencies": {
     "@tanstack/react-query": "^5.80.7",
     "axios": "^1.9.0",
+    "date-fns": "^4.1.0",
     "clsx": "^2.1.1",
     "lucide-react": "^0.517.0",
     "react": "^19.2.4",

@@ -24,7 +24,7 @@ import { startDocSyncPoller } from './services/docSyncService';
 const app = express();
 
 app.use(cors({
-  origin: config.FRONTEND_URL,
+  origin: config.FRONTEND_URL.length === 1 ? config.FRONTEND_URL[0] : config.FRONTEND_URL,
   credentials: true,
 }));
 

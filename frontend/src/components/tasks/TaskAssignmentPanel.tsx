@@ -52,8 +52,6 @@ export function TaskAssignmentPanel({ task }: Props) {
   };
 
   const assignments = task.assignments ?? [];
-  const myAssignment = assignments.find((a) => a.assigneeId === user?.id);
-
   return (
     <div className="space-y-4">
       <h3 className="text-sm font-semibold text-gray-900">Assignments</h3>

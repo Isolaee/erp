@@ -1,6 +1,5 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { Sparkles, X } from 'lucide-react';
-import { clsx } from 'clsx';
 import { Spinner } from '../shared/Spinner';
 import { getAccessToken } from '../../lib/api';
 import { queryClient } from '../../lib/queryClient';
@@ -116,7 +115,7 @@ export function RefinementPanel({ open, onClose, targetType, targetId }: Props) 
             {toolCalls.map((tc, i) => (
               <div key={i} className="flex items-center gap-2 rounded bg-blue-50 px-2 py-1 text-xs">
                 <span className="font-mono font-medium text-blue-700">{tc.tool}</span>
-                {tc.input.title && <span className="text-gray-600 truncate">"{String(tc.input.title)}"</span>}
+                {!!tc.input.title && <span className="text-gray-600 truncate">"{String(tc.input.title)}"</span>}
               </div>
             ))}
           </div>

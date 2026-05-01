@@ -41,5 +41,17 @@ Thumbs.db
 postgres_data/
 redis_data/
 
+# ── Python ────────────────────────────────────────────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+email-backend/.venv/
+
+# ── SQLite ────────────────────────────────────────────────────────────────────
+*.db
+*.db-shm
+*.db-wal
+email-backend/tokens/
+
 # ── Enviroment ────────────────────────────────────────────────────────────────
 bashrc

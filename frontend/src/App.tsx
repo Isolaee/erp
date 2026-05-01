@@ -15,10 +15,13 @@ import { TeamDetailPage }  from './pages/TeamDetailPage';
 import { AllListsPage }    from './pages/AllListsPage';
 import { ListDetailPage }  from './pages/ListDetailPage';
 import { TaskDetailPage }  from './pages/TaskDetailPage';
-import { AdminPage }       from './pages/AdminPage';
-import { ProfilePage }     from './pages/ProfilePage';
-import { DocsListPage }    from './pages/DocsListPage';
-import { DocDetailPage }   from './pages/DocDetailPage';
+import { AdminPage }          from './pages/AdminPage';
+import { ProfilePage }        from './pages/ProfilePage';
+import { DocsListPage }       from './pages/DocsListPage';
+import { DocDetailPage }      from './pages/DocDetailPage';
+import { InboxPage }          from './pages/InboxPage';
+import { CalendarEmailPage }  from './pages/CalendarEmailPage';
+import { EmailSettingsPage }  from './pages/EmailSettingsPage';
 
 function AppRoutes() {
   const { user } = useAuth();
@@ -40,6 +43,9 @@ function AppRoutes() {
           <Route path="/tasks/:id" element={<TaskDetailPage />} />
           <Route path="/docs"      element={<DocsListPage />} />
           <Route path="/docs/:id"  element={<DocDetailPage />} />
+          <Route path="/inbox"          element={<InboxPage />} />
+          <Route path="/email-calendar" element={<CalendarEmailPage />} />
+          <Route path="/email-settings" element={<EmailSettingsPage />} />
           <Route path="/admin"     element={<AdminPage />} />
           <Route path="/profile"   element={<ProfilePage />} />
         </Route>

@@ -13,7 +13,7 @@ const envSchema = z.object({
   GITHUB_CALLBACK_URL: z.string().url().optional(),
   ADMIN_EMAIL: z.string().email(),
   ADMIN_PASSWORD: z.string().min(8),
-  FRONTEND_URL: z.string().url(),
+  FRONTEND_URL: z.string().transform(s => s.split(',').map(u => u.trim())),
   PORT: z.coerce.number().default(3001),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   // Docker test runner

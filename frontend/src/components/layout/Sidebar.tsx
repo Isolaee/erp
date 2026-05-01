@@ -1,14 +1,17 @@
 import { NavLink } from 'react-router-dom';
 import { clsx } from 'clsx';
-import { LayoutDashboard, Users, ListTodo, Settings, Shield, BookOpen } from 'lucide-react';
+import { LayoutDashboard, Users, ListTodo, Settings, Shield, BookOpen, Inbox, CalendarDays, Mail } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 const navItems = [
-  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/teams',     label: 'Teams',     icon: Users },
-  { to: '/lists',     label: 'Lists',     icon: ListTodo },
-  { to: '/docs',      label: 'Docs',      icon: BookOpen },
-  { to: '/profile',   label: 'Profile',   icon: Settings },
+  { to: '/dashboard',      label: 'Dashboard', icon: LayoutDashboard },
+  { to: '/teams',          label: 'Teams',     icon: Users },
+  { to: '/lists',          label: 'Lists',     icon: ListTodo },
+  { to: '/docs',           label: 'Docs',      icon: BookOpen },
+  { to: '/inbox',          label: 'Inbox',     icon: Inbox },
+  { to: '/email-calendar', label: 'Calendar',  icon: CalendarDays },
+  { to: '/email-settings', label: 'Email Accts', icon: Mail },
+  { to: '/profile',        label: 'Profile',   icon: Settings },
 ];
 
 export function Sidebar() {

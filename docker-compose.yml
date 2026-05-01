@@ -35,35 +35,60 @@ services:
     environment:
       DATABASE_URL: postgresql://erp:erp@postgres:5432/erp
       REDIS_URL: redis://redis:6379
-      NODE_ENV: development
       TEST_RUNNER_URL: http://test-runner:4000
       BACKEND_URL: http://backend:3001
       INTERNAL_SECRET: ${INTERNAL_SECRET:-change-this-in-production-16}
     env_file:
-      - ./backend/.env
+      - ./.env
     ports:
       - "3001:3001"
     volumes:
       - ./backend:/app
       - backend_modules:/app/node_modules
-    command: sh -c "npm install && npx prisma db push && npx prisma db seed && npm run dev"
+    command: >
+      sh -c "npm install --silent &&
+             npm run build &&
+             npx prisma db push --accept-data-loss &&
+             npx prisma db seed || echo '[seed] already seeded, skipping' &&
+             npm start"
+    restart: unless-stopped
+
+  email-backend:
+    build:
+      context: ./email-backend
+      dockerfile: Dockerfile
+    env_file:
+      - ./.env
+    environment:
+      EMAIL_DB_URL: sqlite+aiosqlite:////data/email_agent.db
+      FRONTEND_DIST: /frontend-dist
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./email-backend:/app
+      - email_db:/data
+      - ./frontend/dist:/frontend-dist:ro
+    restart: unless-stopped
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    depends_on:
-      - backend
     env_file:
-      - ./frontend/.env
+      - ./.env
+    environment:
+      NODE_ENV: development
+      VITE_API_URL: http://localhost:3001
+      VITE_EMAIL_API_URL: http://localhost:8000
     ports:
       - "5173:5173"
     volumes:
       - ./frontend:/app
       - frontend_modules:/app/node_modules
-    command: sh -c "npm install && npm run dev -- --host"
+    restart: unless-stopped
 
   test-runner:
+    profiles: [dev]
     build:
       context: ./test-runner
       dockerfile: Dockerfile
@@ -74,11 +99,9 @@ services:
         condition: service_healthy
     environment:
       PORT: 4000
-      # Must match backend's INTERNAL_SECRET
       INTERNAL_SECRET: ${INTERNAL_SECRET:-change-this-in-production-16}
     ports:
       - "4000:4000"
-    # test-runner needs internet access to clone repos (no docker socket needed)
     restart: unless-stopped
 
 volumes:
@@ -86,3 +109,4 @@ volumes:
   redis_data:
   backend_modules:
   frontend_modules:
+  email_db:
