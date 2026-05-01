@@ -46,7 +46,7 @@ services:
       - ./backend:/app
       - backend_modules:/app/node_modules
     command: >
-      sh -c "npm install --silent &&
+      sh -c "npm install --include=dev --silent &&
              npm run build &&
              npx prisma db push --accept-data-loss &&
              npx prisma db seed || echo '[seed] already seeded, skipping' &&
@@ -78,8 +78,8 @@ services:
       - ./.env
     environment:
       NODE_ENV: development
-      VITE_API_URL: http://localhost:3001
-      VITE_EMAIL_API_URL: http://localhost:8000
+      VITE_API_URL: http://192.168.1.12:3001
+      VITE_EMAIL_API_URL: http://192.168.1.12:8000
     ports:
       - "5173:5173"
     volumes:

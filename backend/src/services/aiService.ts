@@ -116,11 +116,11 @@ async function executeTool(
         const task = await prisma.task.update({
           where: { id: input.taskId as string },
           data: {
-            ...(input.title       && { title: input.title as string }),
-            ...(input.description && { description: input.description as string }),
-            ...(input.priority    && { priority: input.priority as TaskPriority }),
-            ...(input.status      && { status: input.status as TaskStatus }),
-            ...(input.dueDate     && { dueDate: new Date(input.dueDate as string) }),
+            ...(input.title       ? { title: input.title as string }                     : {}),
+            ...(input.description ? { description: input.description as string }         : {}),
+            ...(input.priority    ? { priority: input.priority as TaskPriority }         : {}),
+            ...(input.status      ? { status: input.status as TaskStatus }               : {}),
+            ...(input.dueDate     ? { dueDate: new Date(input.dueDate as string) }       : {}),
           },
         });
         return { success: true, data: { taskId: task.id, title: task.title } };
